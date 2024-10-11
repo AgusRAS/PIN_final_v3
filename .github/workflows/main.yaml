@@ -1,6 +1,7 @@
 name: Deploy EKS Cluster and Nginx
 
 on:
+    # Se ejecuta manualmente
     workflow_dispatch:
 
 env:
@@ -14,9 +15,11 @@ jobs:
   Credenciales:
     runs-on: ubuntu-latest
     steps:
+    # Checkout code (trae el codigo del repo al runner)
     - name: Checkout code
       uses: actions/checkout@v3
 
+    # AWS Access Key ID and Secret Access Key stored in GitHub Secrets
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -24,11 +27,13 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    # Generar llave SSH para conectarse al EC2
     - name: Generate SSH key
       run: |
         ssh-keygen -t rsa -b 4096 -f jenkins.pem -N ""
         mv jenkins.pem.pub jenkins.pub
 
+    # Subir la llave SSH y el template de CloudFormation como artefactos
     - name: Upload SSH key
       uses: actions/upload-artifact@v3
       with:
@@ -43,12 +48,14 @@ jobs:
         name: cloudformation-template
         path: cloudformation/ec2-stack.yaml
 
+  # Deploy the CloudFormation stack
   Deploy_CloudFormation:
     needs: Credenciales
     runs-on: ubuntu-latest
     outputs:
       ec2_ip: ${{ steps.ec2-ip.outputs.ec2_ip }}
-    steps:      
+    steps: 
+    # Credenciales de AWS     
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
@@ -56,6 +63,7 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    # Descargar la llave SSH y el template de CloudFormation
     - name: Download SSH key
       uses: actions/download-artifact@v3
       with:
@@ -67,6 +75,7 @@ jobs:
         name: cloudformation-template
         path: cloudformation
 
+    # Deploy CloudFormation stack
     - name: Deploy CloudFormation stack
       id: deploy-cfn     
       run: |
@@ -83,6 +92,7 @@ jobs:
         NODE_TYPE: ${{ env.NODE_TYPE }}
         AMI_ID: ${{ env.AMI_ID }}
 
+    # Obtener la IP pública del EC2
     - name: Get EC2 Public IP
       id: ec2-ip
       run: |
@@ -94,6 +104,7 @@ jobs:
         echo "Waiting for EC2 instance to be ready..."
         timeout 300 bash -c 'until nc -z ${{ steps.ec2-ip.outputs.ec2_ip }} 22; do sleep 5; done'
 
+    
     - name: Setup AWS credentials on EC2
       run: |
         chmod 600 jenkins.pem

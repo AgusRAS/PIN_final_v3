@@ -68,6 +68,7 @@ spec:
       labels:
         app: prometheus
     spec:
+      serviceAccountName: prometheus-sa
       containers:
       - name: prometheus
         image: prom/prometheus:v2.30.3
@@ -191,3 +192,9 @@ spec:
         configMap:
           defaultMode: 420
           name: grafana-datasources
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-sa
+  namespace: default
